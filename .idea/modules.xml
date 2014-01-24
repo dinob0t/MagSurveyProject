@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/MagSurvey/MagSurvey.iml" filepath="$PROJECT_DIR$/MagSurvey/MagSurvey.iml" />
+      <module fileurl="file://$PROJECT_DIR$/MagSurveyProject.iml" filepath="$PROJECT_DIR$/MagSurveyProject.iml" />
+    </modules>
+  </component>
+</project>
+
