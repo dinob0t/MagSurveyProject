@@ -8,6 +8,7 @@ import android.widget.ToggleButton;
 import android.view.View;
 import android.widget.Toast;
 
+import android.content.Context;
 
 import java.io.FileOutputStream;
 import java.io.File;
@@ -15,6 +16,13 @@ import java.util.List;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.io.FileNotFoundException;
+
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
+import android.hardware.SensorEventListener;
+
+
 import android.util.Log;
 
 import com.google.android.gms.maps.model.Polyline;
@@ -41,7 +49,6 @@ import java.io.PrintWriter;
 
 import com.google.android.gms.maps.GoogleMap.OnMyLocationButtonClickListener;
 import com.google.android.gms.maps.SupportMapFragment;
-
 import com.google.android.gms.maps.model.LatLng;
 
 
@@ -56,28 +63,37 @@ public class MapActivity extends FragmentActivity
         implements ConnectionCallbacks,
         OnConnectionFailedListener,
         LocationListener,
-        OnMyLocationButtonClickListener {
+        OnMyLocationButtonClickListener,
+        SensorEventListener {
     /**
      * Note that this may be null if the Google Play services APK is not available.
      */
 
-    private static final int ZOOM_LOCATION_DELAY = 2;
     private static final int ZOOM_LOCATION_START = 0;
     private static final String TAG = "MEDIA";
     private static final int ZOOM_LEVEL = 18;
-
     private static final int POLY_WIDTH = 5;
+    private static final int SAMPLE_INTERVAL = 100000;
 
 
     private Boolean runningSurvey;
     private GoogleMap mMap;
     private LocationClient mLocationClient;
     private Location currentLocation;
+    private LatLng currentLatLng;
     private int firstLoadZoom;
     private Polyline surveyLine;
     private PolylineOptions surveyLineOptions;
+    private List<SurveyPoint> surveyPoints;
     private List<LatLng> surveyLatLngs;
     private Integer pointNum;
+    private Context context;
+    private SensorManager sm;
+    private Sensor mag;
+    private float[] mMag;
+    private float[] mMagTotal;
+    private int magPoints;
+
 
 
 
@@ -92,13 +108,18 @@ public class MapActivity extends FragmentActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        context = this;
         firstLoadZoom = ZOOM_LOCATION_START;
         runningSurvey = false;
-       surveyLatLngs = new ArrayList<LatLng>();
+        surveyPoints = new ArrayList<SurveyPoint>();
+        surveyLatLngs = new ArrayList<LatLng>();
         pointNum = 0;
-
+        sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mag = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        mMagTotal = new float[3];
         setContentView(R.layout.map);
         setUpMapIfNeeded();
+        Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_LONG).show();
 
     }
 
@@ -142,7 +163,6 @@ public class MapActivity extends FragmentActivity
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
                 setUpMap();
-
             }
         }
     }
@@ -186,32 +206,41 @@ public class MapActivity extends FragmentActivity
     @Override
     public void onLocationChanged(Location location) {
         currentLocation = location;
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        if(firstLoadZoom == ZOOM_LOCATION_DELAY) {
-
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,ZOOM_LEVEL));
+        currentLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
+        if(firstLoadZoom == 0) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng,ZOOM_LEVEL));
             Toast.makeText(this, "Location acquired", Toast.LENGTH_SHORT).show();
-        }
-        if(firstLoadZoom == ZOOM_LOCATION_START) {
-            Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_SHORT).show();
-        }
-
-        if(firstLoadZoom <= ZOOM_LOCATION_DELAY) {
             firstLoadZoom++;
         }
 
+        //if(firstLoadZoom == ZOOM_LOCATION_DELAY) {
+
+        //    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,ZOOM_LEVEL));
+        //    Toast.makeText(this, "Location acquired", Toast.LENGTH_SHORT).show();
+        //}
+        //if(firstLoadZoom == ZOOM_LOCATION_START) {
+        //    Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_SHORT).show();
+        //}
+
+        //if(firstLoadZoom <= ZOOM_LOCATION_DELAY) {
+        //    firstLoadZoom++;
+        //}
+
         if(runningSurvey == true) {
+
+            SurveyPoint currentPoint = new SurveyPoint(pointNum, currentLocation.getLatitude(), currentLocation.getLongitude(),  mMagTotal[0]/magPoints, mMagTotal[1]/magPoints, mMagTotal[2]/magPoints);
+            zeroMagTotal();
             if(pointNum==0) {
                 surveyLineOptions = new PolylineOptions().width(POLY_WIDTH).color(Color.RED);
                 surveyLine = mMap.addPolyline(surveyLineOptions);
-                surveyLatLngs.add(latLng);
-                pointNum++;
+                surveyLatLngs.add(currentLatLng);
             }
 
-            surveyLatLngs.add(latLng);
+            surveyLatLngs.add(currentLatLng);
+            surveyPoints.add(currentPoint);
             pointNum++;
-            surveyLine.setPoints(surveyLatLngs);
 
+            surveyLine.setPoints(surveyLatLngs);
         }
 
     }
@@ -256,21 +285,25 @@ public class MapActivity extends FragmentActivity
 
         if (on) {
             runningSurvey = true;
+            sm.registerListener(this, mag, SAMPLE_INTERVAL);
+            zeroMagTotal();
         } else {
             runningSurvey = false;
+            sm.unregisterListener(this);
         }
+    }
+
+    public static boolean isSDCARDAvailable(){
+        return Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED);
     }
 
     public void finishSurvey(View view) {
         runningSurvey = false;
-        //File root = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
-        File dir = new File (Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES) + "/blah");
-                Toast.makeText(this, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString(), Toast.LENGTH_SHORT).show();
-        if (!dir.exists()){
-           dir.mkdirs();
-        }
 
+        if(isSDCARDAvailable()==false) {
+            Toast.makeText(this, "External storage unavailable", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         LayoutInflater li = LayoutInflater.from(this);
         View promptsView = li.inflate(R.layout.textprompt, null);
@@ -287,33 +320,41 @@ public class MapActivity extends FragmentActivity
                 .setCancelable(false)
                 .setPositiveButton("OK",
                         new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,int id) {
+                            public void onClick(DialogInterface dialog, int id) {
 
-                                String string = "Hello world!";
                                 // get user input and set it to result
                                 // edit text
-                                if(userInput.getText() != null) {
+                                if (userInput.getText() != null) {
                                     File root = android.os.Environment.getExternalStorageDirectory();
-                                    File dir = new File (root.getAbsolutePath() + "/download");
-                                    dir.mkdir();
-                                    File file = new File(dir, "myData.txt");
-                                    try {
-                                        //File path = getFileStorageDir(userInput.getText().toString());
-                                       // File fileName = new File(path,userInput.getText().toString());
+                                    File dir = new File(root.getAbsolutePath() + "/magSurvey");
+                                    if (!dir.exists()) {
+                                        dir.mkdirs();
+                                    }
+                                    File file = new File(dir, userInput.getText().toString());
+                                    FileOutputStream f = null;
 
-                                        FileOutputStream f = new FileOutputStream(file);
+                                    try {
+                                        f = new FileOutputStream(file);
                                         PrintWriter pw = new PrintWriter(f);
-                                        pw.println("Hello");
+                                        for (Integer i=0; i < pointNum; i++) {
+                                            SurveyPoint currentPoint = surveyPoints.get(i);
+                                            pw.println(i.toString() + " " + currentPoint.getpointLat().toString()  + " " + currentPoint.getpointLon().toString() + " "
+                                                    + currentPoint.getTotalMag().toString());
+                                            pw.write("\n");
+                                        }
                                         pw.flush();
                                         pw.close();
+                                        f.flush();
                                         f.close();
+                                        new SingleMediaScanner(context, file);
 
                                     } catch (FileNotFoundException e) {
-                                        e.printStackTrace();
-                                        Log.i(TAG, "******* File not found. Did you" +
-                                                " add a WRITE_EXTERNAL_STORAGE permission to the   manifest?");
                                     } catch (IOException e) {
-                                        e.printStackTrace();
+                                    } catch (Exception e) {
+                                    } finally {
+                                        if (f != null) {
+                                            f = null;
+                                        }
                                     }
                                 }
 
@@ -321,7 +362,7 @@ public class MapActivity extends FragmentActivity
                         })
                 .setNegativeButton("Cancel",
                         new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,int id) {
+                            public void onClick(DialogInterface dialog, int id) {
                                 dialog.cancel();
                             }
                         });
@@ -343,16 +384,23 @@ public class MapActivity extends FragmentActivity
         return false;
     }
 
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) mMag = event.values.clone();
+        if (mMag != null) {
+            mMagTotal[0] = mMag[0] + mMagTotal[0];
+            mMagTotal[1] = mMag[1] + mMagTotal[1];
+            mMagTotal[2] = mMag[2] + mMagTotal[2];
+            magPoints++;
+        }
+
+    }
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {  }
+
+    public void zeroMagTotal() {
+        mMagTotal[0] = 0;
+        mMagTotal[1] = 0;
+        mMagTotal[2] = 0;
+        magPoints = 0;
+    }
+
 }
-
-
-
-    /* Checks if external storage is available to at least read */
-    //public boolean isExternalStorageReadable() {
-    //    String state = Environment.getExternalStorageState();
-    //    if (Environment.MEDIA_MOUNTED.equals(state) ||
-    //            Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-    //        return true;
-    //    }
-    //    return false;
-    //}

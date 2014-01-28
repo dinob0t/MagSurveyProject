@@ -34,18 +34,21 @@ android:orientation="vertical">
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/finishSurvey"
+        android:onClick="finishSurvey"
         android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true"
-        android:onClick="finishSurvey"/>
+        android:layout_centerHorizontal="true"
+        android:textSize="@dimen/activity_horizontal_margin" />
 
     <ToggleButton
         android:id="@+id/toggleSurvey"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textOn="@string/toggleSurveyOn"
+        android:textOn="@string/toggleSurveyOff"
         android:textOff="@string/toggleSurveyOn"
         android:onClick="onToggleSurvey"
         android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true" />
+        android:layout_alignParentLeft="true"
+        android:layout_alignBottom="@+id/finishSurvey"
+        android:textSize="@dimen/activity_horizontal_margin" />
 </RelativeLayout>
 </LinearLayout>

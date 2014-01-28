@@ -100,8 +100,8 @@
     <string name="tile_overlay_demo_label">Tile Overlays</string>
     <string name="tile_overlay_demo_description">Demonstrates how to add a tile overlay to a map.</string>
     <string name="tilt">Tilt Gestures</string>
-    <string name="toggleSurveyOn">Pause</string>
-    <string name="toggleSurveyOff">Record</string>
+    <string name="toggleSurveyOn">Record</string>
+    <string name="toggleSurveyOff">Pause</string>
     <string name="traffic">Traffic</string>
     <string name="transparency">Transparency</string>
     <string name="ui_settings_demo_label">UI Settings</string>
