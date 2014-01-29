@@ -38,20 +38,18 @@ public class LoadSurvey {
     }
 
     public void loadPoints(){
-        InputStream instream = null;
+
         surveyPoints = new ArrayList<SurveyPoint>();
+        String line;
         try {
         // open the file for reading
             //instream = new FileInputStream(file);
 
         // if file the available for reading
-            if (instream != null) {
+
                 // prepare the file for reading
                 //FileReader inputreader = new InputStreamReader(instream);
                 BufferedReader buffreader = new BufferedReader(new FileReader(file));
-
-                String line;
-
                 // read every line of the file into the line-variable, on line at the time
                 while ((line = buffreader.readLine()) != null) {
                     String[] elements = line.split(" ");
@@ -63,15 +61,11 @@ public class LoadSurvey {
                     surveyPoints.add(currentPoint);
                 }
                 buffreader.close();
-
-
-            }
         } catch (IOException e1) {
         } catch (Exception ex) {
             // print stack trace.
         } finally {
         // close the file.
-            instream = null;
         }
     }
 

@@ -8,9 +8,12 @@ import android.widget.EditText;
 import android.content.Context;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
@@ -47,7 +50,7 @@ public class SaveSurvey {
         public void onClick(DialogInterface dialog, int id) {
 
             String result = userInput.getText().toString();
-
+            String write;
             if (userInput != null) {
                 File root = android.os.Environment.getExternalStorageDirectory();
                 File dir = new File(root.getAbsolutePath() + "/magSurvey");
@@ -56,31 +59,36 @@ public class SaveSurvey {
                 }
                 File file = new File(dir, result);
 
-                FileOutputStream f = null;
+               // FileOutputStream f = null;
 
                 try {
-                    f = new FileOutputStream(file);
-                    PrintWriter pw = new PrintWriter(f);
+                   // f = new FileOutputStream(file);
+                    BufferedWriter buffwriter= new BufferedWriter(new FileWriter(file));
+                    //PrintWriter pw = new PrintWriter(f);
                     for (Integer i=0; i < pointNum; i++) {
                         SurveyPoint currentPoint = surveyPoints.get(i);
-                        pw.println(i.toString() + " " + currentPoint.getpointLat().toString()  + " " + currentPoint.getpointLon().toString() + " "
-                                + currentPoint.getTotalMag().toString());
-                        pw.write("\n");
-
+                        write = i.toString() + " " + currentPoint.getpointLat().toString()  + " " + currentPoint.getpointLon().toString() + " "
+                         + currentPoint.getTotalMag().toString();
+                        //pw.println(i.toString() + " " + currentPoint.getpointLat().toString()  + " " + currentPoint.getpointLon().toString() + " "
+                               // + currentPoint.getTotalMag().toString() + "\r\n");
+                        buffwriter.write(write);
+                        buffwriter.newLine();
                     }
-                    pw.flush();
-                    pw.close();
-                    f.flush();
-                    f.close();
+                    buffwriter.flush();
+                    buffwriter.close();
+                    //pw.flush();
+                    //pw.close();
+                    //f.flush();
+                   // f.close();
                     new SingleMediaScanner(context, file);
 
                 } catch (FileNotFoundException e) {
                 } catch (IOException e) {
                 } catch (Exception e) {
                 } finally {
-                    if (f != null) {
-                        f = null;
-                    }
+                   // if (f != null) {
+                   //     f = null;
+                   // }
                 }
             }
             dialog.dismiss();

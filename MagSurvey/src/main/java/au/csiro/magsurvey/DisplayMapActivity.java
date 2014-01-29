@@ -263,7 +263,7 @@ public class DisplayMapActivity extends FragmentActivity
                     loadSurvey.loadPoints();
                     List<SurveyPoint> surveyPoints = loadSurvey.getSurveyPoints();
                     Integer blah = surveyPoints.size();
-                    Toast.makeText(this, blah.toString(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, blah.toString() + " points loaded", Toast.LENGTH_SHORT).show();
                 }
                 break;
             }
