@@ -12,5 +12,8 @@ public final class MainMenuDetailsList {
             new MainMenuDetails(R.string.map_activity_label,
                     R.string.map_activity_description,
                     MapActivity.class),
+            new MainMenuDetails(R.string.displaymap_activity_label,
+            R.string.displaymap_activity_description,
+            DisplayMapActivity.class)
     };
 }

@@ -1,49 +1,45 @@
 package au.csiro.magsurvey;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
+import android.content.Intent;
+
+import android.app.Activity;
 import android.graphics.Color;
+
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.app.FragmentActivity;
-import android.widget.ToggleButton;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
-import android.view.KeyEvent;
-
-import android.content.Context;
-
-import java.io.FileOutputStream;
-import java.io.File;
-import java.util.List;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.io.FileNotFoundException;
-
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorManager;
-import android.hardware.SensorEventListener;
 
 
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient.ConnectionCallbacks;
 import com.google.android.gms.common.GooglePlayServicesClient.OnConnectionFailedListener;
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-
-import android.os.Environment;
-import java.io.PrintWriter;
-
-
-
 import com.google.android.gms.maps.GoogleMap.OnMyLocationButtonClickListener;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -52,43 +48,30 @@ import com.google.android.gms.maps.model.LatLng;
  * Notice how we deal with the possibility that the Google Play services APK is not
  * installed/enabled/updated on a user's device.
  */
-public class MapActivity extends FragmentActivity
+public class DisplayMapActivity extends FragmentActivity
         implements ConnectionCallbacks,
         OnConnectionFailedListener,
         LocationListener,
-        OnMyLocationButtonClickListener,
-        SensorEventListener {
+        OnMyLocationButtonClickListener {
     /**
      * Note that this may be null if the Google Play services APK is not available.
      */
 
-    private static final int ZOOM_LOCATION_START = 0;
 
     private static final int ZOOM_LEVEL = 18;
-    private static final int POLY_WIDTH = 5;
-    private static final int MAG_SAMPLE_INTERVAL = 100000;
     private static final int LOC_SAMPLE_INTERVAL = 5000;
+    private static final int STATIC_INTEGER_VALUE = 10;
 
-    private Boolean runningSurvey;
+
+    private String fileName;
     private GoogleMap mMap;
     private LocationClient mLocationClient;
     private Location currentLocation;
     private LatLng currentLatLng;
-    private int firstLoadZoom;
-    private Polyline surveyLine;
-    private PolylineOptions surveyLineOptions;
+
+
     private List<SurveyPoint> surveyPoints;
-    private List<LatLng> surveyLatLngs;
-    private Integer pointNum;
     private Context context;
-    private SensorManager sm;
-    private Sensor mag;
-    private float[] mMag;
-    private float[] mMagTotal;
-    private int magPoints;
-
-
-
 
     // These settings are the same as the settings for the map. They will in fact give you updates
     // at the maximal rates currently possible.
@@ -102,17 +85,9 @@ public class MapActivity extends FragmentActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
-        firstLoadZoom = ZOOM_LOCATION_START;
-        runningSurvey = false;
         surveyPoints = new ArrayList<SurveyPoint>();
-        surveyLatLngs = new ArrayList<LatLng>();
-        pointNum = 0;
-        sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mag = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        mMagTotal = new float[3];
-        setContentView(R.layout.map);
+        setContentView(R.layout.displaymap);
         setUpMapIfNeeded();
-        Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_LONG).show();
 
     }
 
@@ -151,7 +126,7 @@ public class MapActivity extends FragmentActivity
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
             // Try to obtain the map from the SupportMapFragment.
-            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.displaymap))
                     .getMap();
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
@@ -200,42 +175,6 @@ public class MapActivity extends FragmentActivity
     public void onLocationChanged(Location location) {
         currentLocation = location;
         currentLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
-        if(firstLoadZoom == 0) {
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng,ZOOM_LEVEL));
-            Toast.makeText(this, "Location acquired", Toast.LENGTH_SHORT).show();
-            firstLoadZoom++;
-        }
-
-        //if(firstLoadZoom == ZOOM_LOCATION_DELAY) {
-
-        //    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,ZOOM_LEVEL));
-        //    Toast.makeText(this, "Location acquired", Toast.LENGTH_SHORT).show();
-        //}
-        //if(firstLoadZoom == ZOOM_LOCATION_START) {
-        //    Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_SHORT).show();
-        //}
-
-        //if(firstLoadZoom <= ZOOM_LOCATION_DELAY) {
-        //    firstLoadZoom++;
-        //}
-
-        if(runningSurvey == true) {
-            Double totalMag = Math.sqrt((Math.pow(mMagTotal[0]/magPoints,2) + Math.pow(mMagTotal[1]/magPoints,2) + Math.pow(mMagTotal[2]/magPoints,2)));
-            SurveyPoint currentPoint = new SurveyPoint(pointNum, currentLocation.getLatitude(), currentLocation.getLongitude(), totalMag);
-            zeroMagTotal();
-            if(pointNum==0) {
-                surveyLineOptions = new PolylineOptions().width(POLY_WIDTH).color(Color.RED);
-                surveyLine = mMap.addPolyline(surveyLineOptions);
-                surveyLatLngs.add(currentLatLng);
-            }
-
-            surveyLatLngs.add(currentLatLng);
-            surveyPoints.add(currentPoint);
-            pointNum++;
-
-            surveyLine.setPoints(surveyLatLngs);
-        }
-
     }
 
     /**
@@ -272,33 +211,9 @@ public class MapActivity extends FragmentActivity
         return false;
     }
 
-    public void onToggleSurvey(View view) {
-        // Is the toggle on?
-        boolean on = ((ToggleButton) view).isChecked();
-
-        if (on) {
-            runningSurvey = true;
-            sm.registerListener(this, mag, MAG_SAMPLE_INTERVAL);
-            zeroMagTotal();
-        } else {
-            runningSurvey = false;
-            sm.unregisterListener(this);
-        }
-    }
 
     public static boolean isSDCARDAvailable(){
         return Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED);
-    }
-
-    public void finishSurvey(View view) {
-        runningSurvey = false;
-
-        if(isSDCARDAvailable()==false) {
-            Toast.makeText(this, "External storage unavailable", Toast.LENGTH_SHORT).show();
-            return;
-        }
-            SaveSurvey saveSurvey = new SaveSurvey(context, surveyPoints, pointNum) ;
-            saveSurvey.save();
     }
 
     /* Checks if external storage is available for read and write */
@@ -310,31 +225,50 @@ public class MapActivity extends FragmentActivity
         return false;
     }
 
-    public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) mMag = event.values.clone();
-        if (mMag != null) {
-            mMagTotal[0] = mMag[0] + mMagTotal[0];
-            mMagTotal[1] = mMag[1] + mMagTotal[1];
-            mMagTotal[2] = mMag[2] + mMagTotal[2];
-            magPoints++;
+    public void loadSurvey(View view) {
+
+        //fileName = null;
+       // List<SurveyPoint> surveyPoints = new ArrayList<SurveyPoint>();
+        //Integer pointNum = 0;
+        if(isSDCARDAvailable()==false) {
+            Toast.makeText(this, "External storage unavailable", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-    }
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {  }
+        Intent i = new Intent(this,FileExplorer.class);
 
-    public void zeroMagTotal() {
-        mMagTotal[0] = 0;
-        mMagTotal[1] = 0;
-        mMagTotal[2] = 0;
-        magPoints = 0;
+        startActivityForResult(i, STATIC_INTEGER_VALUE);
+
+       // LoadSurvey loadSurvey = new LoadSurvey(fileName);
+
+        //if(loadSurvey.loadPoints()== true) {
+
+        //    surveyPoints = loadSurvey.getSurveyPoints();
+
+        //    pointNum = loadSurvey.getPointNum();
+        //}
+        //Toast.makeText(this, "Number of points loaded : " + pointNum.toString(), Toast.LENGTH_SHORT).show();
+
     }
+
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event)
-    {
-        if ((keyCode == KeyEvent.KEYCODE_BACK))
-        {
-            finish();
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch(requestCode) {
+            case (STATIC_INTEGER_VALUE) : {
+                if (resultCode == RESULT_OK) {
+                    fileName = data.getStringExtra("fileName");
+                    Toast.makeText(this, "Survey loaded from: " + fileName , Toast.LENGTH_SHORT).show();
+                    LoadSurvey loadSurvey = new LoadSurvey(fileName);
+                    loadSurvey.loadPoints();
+                    List<SurveyPoint> surveyPoints = loadSurvey.getSurveyPoints();
+                    Integer blah = surveyPoints.size();
+                    Toast.makeText(this, blah.toString(), Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
         }
-        return super.onKeyDown(keyCode, event);
     }
+
+
 }
