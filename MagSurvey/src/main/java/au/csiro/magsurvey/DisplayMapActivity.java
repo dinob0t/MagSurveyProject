@@ -18,7 +18,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
-
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient.ConnectionCallbacks;
 import com.google.android.gms.common.GooglePlayServicesClient.OnConnectionFailedListener;
@@ -32,12 +32,16 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,9 +62,12 @@ public class DisplayMapActivity extends FragmentActivity
      */
 
 
-    private static final int ZOOM_LEVEL = 18;
+    private static final int NUM_COLOURS = 10;
+    private static final int MAX_COLOURS = 240;
+    private static final int MIN_COLOURS = 0;
     private static final int LOC_SAMPLE_INTERVAL = 5000;
     private static final int STATIC_INTEGER_VALUE = 10;
+
 
 
     private String fileName;
@@ -70,8 +77,8 @@ public class DisplayMapActivity extends FragmentActivity
     private LatLng currentLatLng;
 
 
-    private List<SurveyPoint> surveyPoints;
-    private Context context;
+
+
 
     // These settings are the same as the settings for the map. They will in fact give you updates
     // at the maximal rates currently possible.
@@ -84,8 +91,8 @@ public class DisplayMapActivity extends FragmentActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        context = this;
-        surveyPoints = new ArrayList<SurveyPoint>();
+
+
         setContentView(R.layout.displaymap);
         setUpMapIfNeeded();
 
@@ -257,18 +264,62 @@ public class DisplayMapActivity extends FragmentActivity
         switch(requestCode) {
             case (STATIC_INTEGER_VALUE) : {
                 if (resultCode == RESULT_OK) {
+                    mMap.clear();
                     fileName = data.getStringExtra("fileName");
                     Toast.makeText(this, "Survey loaded from: " + fileName , Toast.LENGTH_SHORT).show();
                     LoadSurvey loadSurvey = new LoadSurvey(fileName);
                     loadSurvey.loadPoints();
                     List<SurveyPoint> surveyPoints = loadSurvey.getSurveyPoints();
-                    Integer blah = surveyPoints.size();
-                    Toast.makeText(this, blah.toString() + " points loaded", Toast.LENGTH_SHORT).show();
+                    Integer totalPoints = surveyPoints.size();
+                    Toast.makeText(this, totalPoints.toString() + " points loaded", Toast.LENGTH_SHORT).show();
+
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(plotPoints(surveyPoints, totalPoints).build(), 50));
+
                 }
                 break;
             }
         }
     }
+
+    public LatLngBounds.Builder plotPoints(List<SurveyPoint> surveyPoints, Integer totalPoints){
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        SurveyPoint currentPoint = surveyPoints.get(0);
+        Double minMag = minMag = currentPoint.getTotalMag();
+        Double maxMag = maxMag = currentPoint.getTotalMag();
+
+        for (Integer i=1; i < totalPoints; i++) {
+            currentPoint = surveyPoints.get(i);
+             if(currentPoint.getTotalMag()<minMag) {
+                minMag = currentPoint.getTotalMag();
+            }
+            if(currentPoint.getTotalMag()>maxMag) {
+                maxMag = currentPoint.getTotalMag();
+            }
+        }
+
+        for (Integer i=0; i < totalPoints; i++) {
+            currentPoint = surveyPoints.get(i);
+            LatLng currentLatLng = new LatLng(currentPoint.getpointLat(), currentPoint.getpointLon());
+            bounds.include(currentLatLng);
+            DecimalFormat df = new DecimalFormat("#.#");
+            Integer currentPointNum = currentPoint.getpointNumber() + 1;
+            Double colorchooser = MAX_COLOURS - ((MAX_COLOURS - MIN_COLOURS) * (currentPoint.getTotalMag()-minMag) / (maxMag-minMag));
+
+            mMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("Point " + currentPointNum.toString())
+                    .snippet(df.format(currentPoint.getTotalMag()) + "\u00B5"  +"T")
+                    .icon(BitmapDescriptorFactory.defaultMarker(colorchooser.intValue())));
+                    //.icon(BitmapDescriptorFactory.fromResource(R.drawable.arrow))
+                    //.infoWindowAnchor(0.5f, 0.5f));
+
+        }
+
+
+
+        return bounds;
+    }
+
 
 
 }
