@@ -34,6 +34,7 @@ import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import android.os.Environment;
 import java.io.PrintWriter;
@@ -112,8 +113,8 @@ public class MapActivity extends FragmentActivity
         mMagTotal = new float[3];
         setContentView(R.layout.map);
         setUpMapIfNeeded();
-        Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_LONG).show();
 
+        Toast.makeText(this, "Acquiring location - please wait", Toast.LENGTH_LONG).show();
     }
 
     @Override
